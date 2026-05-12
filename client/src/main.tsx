@@ -13,6 +13,8 @@ import MyTasksPage from '@/pages/MyTasksPage'
 import EmployeesPage from '@/pages/EmployeesPage'
 import SettingsPage from '@/pages/SettingsPage'
 import './index.css'
+import { setupDemoMock } from '@/lib/demo-mock'
+if (import.meta.env.VITE_DEMO_MODE === 'true') setupDemoMock()
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -31,7 +33,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.VITE_DEMO_MODE === 'true' ? '/erez-management' : '/'}>
       <AuthProvider>
         <ToastProvider>
           <Routes>
