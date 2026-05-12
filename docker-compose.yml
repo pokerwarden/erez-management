@@ -1,0 +1,59 @@
+services:
+  app:
+    image: lawfirm-system:latest
+    restart: unless-stopped
+    ports:
+      - "${PORT:-4000}:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/lawfirm
+      JWT_SECRET: ${JWT_SECRET}
+      N8N_WEBHOOK_BASE: http://n8n:5678/webhook
+      N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET}
+      FIRM_NAME: ${FIRM_NAME:-משרד עורכי דין}
+      UPLOAD_DIR: /app/uploads
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-20}
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: lawfirm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  n8n:
+    image: n8nio/n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: db
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: postgres
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  n8n_data:
+  uploads:

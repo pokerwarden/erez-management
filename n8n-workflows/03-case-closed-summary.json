@@ -1,0 +1,42 @@
+{
+  "name": "Case Closed → Summary Email",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "case-status-changed",
+        "responseMode": "onReceived"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{ "value1": "={{$json[\"newStatus\"]}}", "value2": "CLOSED", "operation": "equal" }]
+        }
+      },
+      "name": "Is Closed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.FIRM_EMAIL}}",
+        "toEmail": "={{$node[\"Webhook\"].json[\"case\"][\"clientEmail\"]}}",
+        "subject": "=סיכום תיק — {{$node[\"Webhook\"].json[\"case\"][\"title\"]}}",
+        "text": "=שלום {{$node[\"Webhook\"].json[\"case\"][\"clientName\"]}},\n\nתיקך מספר {{$node[\"Webhook\"].json[\"case\"][\"caseNumber\"]}} — {{$node[\"Webhook\"].json[\"case\"][\"title\"]}} — נסגר.\n\nתאריך סגירה: {{$today.format('DD/MM/YYYY')}}\n\nתודה שבחרת במשרדנו.\n\nבברכה,\nצוות המשרד"
+      },
+      "name": "Send Summary Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [680, 200]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Is Closed?", "type": "main", "index": 0 }]] },
+    "Is Closed?": { "main": [[{ "node": "Send Summary Email", "type": "main", "index": 0 }], []] }
+  }
+}

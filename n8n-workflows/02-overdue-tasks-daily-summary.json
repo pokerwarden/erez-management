@@ -1,0 +1,52 @@
+{
+  "name": "Daily Overdue Tasks → Email Admin",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 8 * * *" }] }
+      },
+      "name": "Every Day 8:00 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.title, t.due_date, u.name as assignee_name, u.email as assignee_email, c.title as case_title FROM \"Task\" t JOIN \"User\" u ON t.\"assigneeId\" = u.id LEFT JOIN \"Case\" c ON t.\"caseId\" = c.id WHERE t.\"dueDate\" < NOW() AND t.status != 'DONE' ORDER BY t.\"dueDate\" ASC"
+      },
+      "name": "Get Overdue Tasks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{ "value1": "={{$items().length}}", "operation": "larger", "value2": 0 }]
+        }
+      },
+      "name": "Any Overdue?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.FIRM_EMAIL}}",
+        "toEmail": "={{$env.ADMIN_EMAIL}}",
+        "subject": "=דוח משימות שפג תוקפן — {{$today.format('DD/MM/YYYY')}}",
+        "text": "=שלום,\n\nמשימות שפג תוקפן ({{$items().length}} משימות):\n\n{{$items().map(t => `• ${t.json.title} — ${t.json.assignee_name} (תיק: ${t.json.case_title || 'ללא תיק'})`).join('\\n')}}\n\nיש לטפל בהקדם.\n\nמערכת ניהול תיקים"
+      },
+      "name": "Email Admin",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [900, 200]
+    }
+  ],
+  "connections": {
+    "Every Day 8:00 AM": { "main": [[{ "node": "Get Overdue Tasks", "type": "main", "index": 0 }]] },
+    "Get Overdue Tasks": { "main": [[{ "node": "Any Overdue?", "type": "main", "index": 0 }]] },
+    "Any Overdue?": { "main": [[{ "node": "Email Admin", "type": "main", "index": 0 }], []] }
+  }
+}

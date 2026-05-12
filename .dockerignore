@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/.env
+uploads/
+backups/
+images/
+*.tar.gz
+*.bat
+*.sh
+n8n-workflows/
+README-INSTALL.md

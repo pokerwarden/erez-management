@@ -1,0 +1,155 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+}
+
+enum CaseStatus {
+  OPEN
+  IN_PROGRESS
+  PENDING_CLIENT
+  PENDING_COURT
+  CLOSED
+  ARCHIVED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  name          String
+  role          Role      @default(EMPLOYEE)
+  avatarUrl     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  assignedTasks   Task[]           @relation("AssignedTo")
+  createdTasks    Task[]           @relation("CreatedBy")
+  comments        Comment[]
+  notifications   Notification[]
+  caseAssignments CaseAssignment[]
+}
+
+model Case {
+  id          String     @id @default(uuid())
+  caseNumber  String     @unique
+  title       String
+  clientName  String
+  clientEmail String?
+  clientPhone String?
+  description String?
+  status      CaseStatus @default(OPEN)
+  courtDate   DateTime?
+  courtName   String?
+  caseType    String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  tasks       Task[]
+  comments    Comment[]
+  assignments CaseAssignment[]
+  documents   Document[]
+}
+
+model CaseAssignment {
+  id         String   @id @default(uuid())
+  caseId     String
+  userId     String
+  assignedAt DateTime @default(now())
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([caseId, userId])
+}
+
+model Task {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?
+  caseId      String?
+  assigneeId  String
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  case      Case?    @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  assignee  User     @relation("AssignedTo", fields: [assigneeId], references: [id])
+  createdBy User     @relation("CreatedBy", fields: [createdById], references: [id])
+  comments  Comment[]
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  userId    String
+  caseId    String?
+  taskId    String?
+  createdAt DateTime @default(now())
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  case Case? @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  type      String
+  linkTo    String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id         String   @id @default(uuid())
+  name       String
+  filePath   String
+  fileSize   Int
+  mimeType   String
+  caseId     String
+  uploadedAt DateTime @default(now())
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model FirmSettings {
+  id           String  @id @default("singleton")
+  firmName     String  @default("משרד עורכי דין")
+  firmLogo     String?
+  primaryColor String  @default("#1e40af")
+  emailFrom    String?
+  phone        String?
+  address      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

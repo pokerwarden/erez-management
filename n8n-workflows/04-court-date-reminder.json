@@ -1,0 +1,40 @@
+{
+  "name": "Court Date Reminder (3 Days Prior)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 9 * * *" }] }
+      },
+      "name": "Every Day 9:00 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id, c.title, c.case_number, c.court_date, c.court_name, u.name as assignee_name, u.email as assignee_email FROM \"Case\" c JOIN \"CaseAssignment\" ca ON c.id = ca.\"caseId\" JOIN \"User\" u ON ca.\"userId\" = u.id WHERE c.court_date BETWEEN NOW() AND NOW() + INTERVAL '3 days' AND c.status NOT IN ('CLOSED', 'ARCHIVED')"
+      },
+      "name": "Cases with Upcoming Court Dates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.FIRM_EMAIL}}",
+        "toEmail": "={{$json[\"assignee_email\"]}}",
+        "subject": "=תזכורת: דיון ב-{{$json[\"court_name\"] || 'בית משפט'}} — {{$json[\"title\"]}}",
+        "text": "=שלום {{$json[\"assignee_name\"]}},\n\nתזכורת: דיון בתיק {{$json[\"case_number\"]}} — {{$json[\"title\"]}}\n\nתאריך: {{$json[\"court_date\"]}}\nבית משפט: {{$json[\"court_name\"] || 'לא צוין'}}\n\nמערכת ניהול תיקים"
+      },
+      "name": "Send Reminder Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Every Day 9:00 AM": { "main": [[{ "node": "Cases with Upcoming Court Dates", "type": "main", "index": 0 }]] },
+    "Cases with Upcoming Court Dates": { "main": [[{ "node": "Send Reminder Email", "type": "main", "index": 0 }]] }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "name": "New Case → Email Client",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "case-created",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"case\"][\"clientEmail\"]}}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "name": "Has Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.FIRM_EMAIL}}",
+        "toEmail": "={{$node[\"Webhook\"].json[\"case\"][\"clientEmail\"]}}",
+        "subject": "=אישור פתיחת תיק — {{$node[\"Webhook\"].json[\"case\"][\"title\"]}}",
+        "text": "=שלום {{$node[\"Webhook\"].json[\"case\"][\"clientName\"]}},\n\nתיק עורכי הדין שלך נפתח בהצלחה.\nמספר תיק: {{$node[\"Webhook\"].json[\"case\"][\"caseNumber\"]}}\n\nנהיה בקשר.\n\nבברכה,\nצוות המשרד"
+      },
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [680, 200]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Has Email?", "type": "main", "index": 0 }]] },
+    "Has Email?": { "main": [[{ "node": "Send Email", "type": "main", "index": 0 }], []] }
+  }
+}
