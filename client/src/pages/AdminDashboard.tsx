@@ -102,9 +102,9 @@ export default function AdminDashboard() {
         setEmployees(empStats)
 
         const overviewRes = await api.get('/cases/overview').catch(() => null)
-        if (overviewRes) {
+        if (overviewRes?.data?.cases) {
           setOverviewCases(overviewRes.data.cases)
-          setOverviewUsers(overviewRes.data.users)
+          setOverviewUsers(overviewRes.data.users ?? [])
         }
       } finally {
         setLoading(false)

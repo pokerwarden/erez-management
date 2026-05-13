@@ -25,6 +25,21 @@ export function setupDemoMock() {
     // Users
     if (url.includes('/users')) return { data: DEMO_USERS }
 
+    // Cases overview (must be before cases list)
+    if (url.includes('/cases/overview')) {
+      const overviewCases = DEMO_CASES.map(c => ({
+        id: c.id, caseNumber: c.caseNumber, courtCaseNumber: null,
+        title: c.title, status: c.status, updatedAt: c.updatedAt,
+        assignments: c.assignments,
+        tasks: DEMO_TASKS.filter(t => t.caseId === c.id).map(t => ({ id: t.id, status: t.status, assigneeId: t.assigneeId })),
+      }))
+      const overviewUsers = DEMO_USERS.filter(u => u.role === 'EMPLOYEE').map(u => ({ id: u.id, name: u.name }))
+      return { data: { cases: overviewCases, users: overviewUsers } }
+    }
+
+    // Status requests
+    if (url.includes('/status-requests')) return { data: [] }
+
     // Cases list
     if (url.match(/\/cases$/) || url.match(/\/cases\?/)) {
       return { data: { cases: DEMO_CASES, total: DEMO_CASES.length, page: 1, limit: 20 } }
@@ -50,6 +65,9 @@ export function setupDemoMock() {
 
     // Notifications
     if (url.includes('/notifications')) return { data: { notifications: [], unreadCount: 0 } }
+
+    // Version
+    if (url.includes('/version')) return { data: { version: '1.0.0', updateAvailable: false } }
 
     // Default: return empty success
     return { data: { success: true } }
