@@ -31,6 +31,35 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function DownloadBanner() {
+  if (import.meta.env.VITE_DEMO_MODE !== 'true') return null
+  return (
+    <a
+      href="https://github.com/pokerwarden/erez-management/releases/latest/download/LawFirmSystem-Setup-v1.0.0.exe"
+      style={{
+        position: 'fixed',
+        bottom: '24px',
+        left: '24px',
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        background: '#2563eb',
+        color: '#fff',
+        padding: '12px 20px',
+        borderRadius: '12px',
+        fontFamily: 'Heebo, sans-serif',
+        fontWeight: 600,
+        fontSize: '14px',
+        textDecoration: 'none',
+        boxShadow: '0 4px 14px rgba(37,99,235,0.4)',
+      }}
+    >
+      ⬇️ הורד והתקן את המערכת
+    </a>
+  )
+}
+
 function App() {
   return (
     <BrowserRouter basename={import.meta.env.VITE_DEMO_MODE === 'true' ? '/erez-management' : '/'}>
@@ -52,6 +81,7 @@ function App() {
           </Routes>
         </ToastProvider>
       </AuthProvider>
+      <DownloadBanner />
     </BrowserRouter>
   )
 }
