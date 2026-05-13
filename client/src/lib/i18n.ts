@@ -12,6 +12,7 @@ const he = {
   IN_PROGRESS: 'בטיפול',
   PENDING_CLIENT: 'ממתין ללקוח',
   PENDING_COURT: 'ממתין לבית משפט',
+  PENDING_RESPONSE: 'ממתין לתגובה',
   CLOSED: 'סגור',
   ARCHIVED: 'בארכיון',
 
@@ -60,6 +61,7 @@ const he = {
 
   // Cases
   caseNumber: 'מספר תיק',
+  courtCaseNumber: 'מס\' תיק בי"מ',
   caseTitle: 'כותרת התיק',
   clientName: 'שם לקוח',
   caseType: 'סוג תיק',
@@ -68,6 +70,24 @@ const he = {
   assignedTo: 'מוקצה ל',
   newCase: 'תיק חדש',
   editCase: 'ערוך תיק',
+
+  // Financial fields
+  initialPrice: 'הצעת מחיר ראשונית',
+  totalCaseValue: 'שווי תיק כולל',
+  workHours: 'זמן עבודה (שע\')',
+  clientProposal: 'הצעת לקוח',
+  totalUsed: 'סה"כ נוצל',
+  billing: 'חיובים',
+  financial: 'פיננסי',
+
+  // Status requests
+  statusRequest: 'בקשת התייחסות',
+  sendStatusRequest: 'שלח בקשת התייחסות',
+  resolveRequest: 'סמן כנפתר',
+  pendingRequests: 'בקשות ממתינות',
+
+  // Overview
+  overview: 'מבט-על',
 
   // Tasks
   taskTitle: 'כותרת משימה',

@@ -18,6 +18,7 @@ enum CaseStatus {
   IN_PROGRESS
   PENDING_CLIENT
   PENDING_COURT
+  PENDING_RESPONSE
   CLOSED
   ARCHIVED
 }
@@ -45,32 +46,41 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  assignedTasks   Task[]           @relation("AssignedTo")
-  createdTasks    Task[]           @relation("CreatedBy")
-  comments        Comment[]
-  notifications   Notification[]
-  caseAssignments CaseAssignment[]
+  assignedTasks          Task[]           @relation("AssignedTo")
+  createdTasks           Task[]           @relation("CreatedBy")
+  comments               Comment[]
+  notifications          Notification[]
+  caseAssignments        CaseAssignment[]
+  statusRequestsSent     StatusRequest[]  @relation("StatusRequestFrom")
+  statusRequestsReceived StatusRequest[]  @relation("StatusRequestTo")
 }
 
 model Case {
-  id          String     @id @default(uuid())
-  caseNumber  String     @unique
-  title       String
-  clientName  String
-  clientEmail String?
-  clientPhone String?
-  description String?
-  status      CaseStatus @default(OPEN)
-  courtDate   DateTime?
-  courtName   String?
-  caseType    String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id                String     @id @default(uuid())
+  caseNumber        String     @unique
+  courtCaseNumber   String?
+  title             String
+  clientName        String
+  clientEmail       String?
+  clientPhone       String?
+  description       String?
+  status            CaseStatus @default(OPEN)
+  courtDate         DateTime?
+  courtName         String?
+  caseType          String?
+  initialPrice      Float?
+  totalCaseValue    Float?
+  workHours         Float?
+  clientProposal    Float?
+  totalUsed         Float?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
-  tasks       Task[]
-  comments    Comment[]
-  assignments CaseAssignment[]
-  documents   Document[]
+  tasks          Task[]
+  comments       Comment[]
+  assignments    CaseAssignment[]
+  documents      Document[]
+  statusRequests StatusRequest[]
 }
 
 model CaseAssignment {
@@ -92,6 +102,7 @@ model Task {
   status      TaskStatus   @default(TODO)
   priority    TaskPriority @default(MEDIUM)
   dueDate     DateTime?
+  billing     Float?
   caseId      String?
   assigneeId  String
   createdById String
@@ -140,6 +151,20 @@ model Document {
   uploadedAt DateTime @default(now())
 
   case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model StatusRequest {
+  id          String   @id @default(uuid())
+  caseId      String
+  fromUserId  String
+  toUserId    String
+  message     String
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  case     Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  fromUser User @relation("StatusRequestFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("StatusRequestTo", fields: [toUserId], references: [id], onDelete: Cascade)
 }
 
 model FirmSettings {

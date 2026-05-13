@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { formatDate, formatDateTime } from '@/lib/utils'
-import { ArrowRight, Plus, Paperclip, Send, Trash2, UserPlus } from 'lucide-react'
+import { ArrowRight, Plus, Paperclip, Send, Trash2, UserPlus, MessageSquare } from 'lucide-react'
 
 const STATUS_VARIANTS: Record<string, any> = {
   OPEN: 'success', IN_PROGRESS: 'info', PENDING_CLIENT: 'warning',
@@ -23,7 +23,7 @@ const STATUS_VARIANTS: Record<string, any> = {
 const PRIORITY_VARIANTS: Record<string, any> = {
   LOW: 'secondary', MEDIUM: 'outline', HIGH: 'warning', URGENT: 'destructive',
 }
-const STATUSES = ['OPEN', 'IN_PROGRESS', 'PENDING_CLIENT', 'PENDING_COURT', 'CLOSED', 'ARCHIVED']
+const STATUSES = ['OPEN', 'IN_PROGRESS', 'PENDING_CLIENT', 'PENDING_COURT', 'PENDING_RESPONSE', 'CLOSED', 'ARCHIVED']
 const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE']
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
 
@@ -40,13 +40,19 @@ export default function CaseDetailPage() {
   const [users, setUsers] = useState<any[]>([])
   const [showTaskDialog, setShowTaskDialog] = useState(false)
   const [showAssignDialog, setShowAssignDialog] = useState(false)
+  const [showStatusRequestDialog, setShowStatusRequestDialog] = useState(false)
   const [taskForm, setTaskForm] = useState({ title: '', description: '', assigneeId: '', priority: 'MEDIUM', dueDate: '' })
+  const [statusRequestForm, setStatusRequestForm] = useState({ toUserId: '', message: '' })
+  const [statusRequests, setStatusRequests] = useState<any[]>([])
+  const [financialForm, setFinancialForm] = useState<any>({})
+  const [editingFinancials, setEditingFinancials] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!id) return
     loadCase()
     loadComments()
+    loadStatusRequests()
     if (user?.role === 'ADMIN') {
       api.get('/users').then(r => setUsers(r.data)).catch(() => {})
     }
@@ -69,9 +75,24 @@ export default function CaseDetailPage() {
     try {
       const res = await api.get(`/cases/${id}`)
       setCaseData(res.data)
+      setFinancialForm({
+        initialPrice: res.data.initialPrice ?? '',
+        totalCaseValue: res.data.totalCaseValue ?? '',
+        workHours: res.data.workHours ?? '',
+        clientProposal: res.data.clientProposal ?? '',
+        totalUsed: res.data.totalUsed ?? '',
+        courtCaseNumber: res.data.courtCaseNumber ?? '',
+      })
     } finally {
       setLoading(false)
     }
+  }
+
+  async function loadStatusRequests() {
+    try {
+      const res = await api.get(`/cases/${id}/status-requests`)
+      setStatusRequests(res.data)
+    } catch { /* non-critical */ }
   }
 
   async function loadComments() {
@@ -132,6 +153,35 @@ export default function CaseDetailPage() {
     loadCase()
   }
 
+  async function sendStatusRequest(e: React.FormEvent) {
+    e.preventDefault()
+    await api.post(`/cases/${id}/status-requests`, statusRequestForm)
+    setShowStatusRequestDialog(false)
+    setStatusRequestForm({ toUserId: '', message: '' })
+    showToast('הבקשה נשלחה', '', 'success')
+    loadCase()
+    loadStatusRequests()
+  }
+
+  async function resolveStatusRequest(reqId: string) {
+    await api.put(`/cases/${id}/status-requests/${reqId}/resolve`, {})
+    loadStatusRequests()
+    loadCase()
+    showToast('הבקשה סומנה כנפתרה', '', 'success')
+  }
+
+  async function saveFinancials(e: React.FormEvent) {
+    e.preventDefault()
+    const payload: any = { courtCaseNumber: financialForm.courtCaseNumber || null }
+    ;['initialPrice', 'totalCaseValue', 'workHours', 'clientProposal', 'totalUsed'].forEach(k => {
+      payload[k] = financialForm[k] !== '' ? parseFloat(financialForm[k]) : null
+    })
+    await api.put(`/cases/${id}`, payload)
+    setEditingFinancials(false)
+    loadCase()
+    showToast('השדות הפיננסיים עודכנו', '', 'success')
+  }
+
   if (loading) return <div className="text-center py-12 text-muted-foreground">{t('loading')}</div>
   if (!caseData) return <div className="text-center py-12 text-muted-foreground">תיק לא נמצא</div>
 
@@ -155,6 +205,9 @@ export default function CaseDetailPage() {
 
         {user?.role === 'ADMIN' && (
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowStatusRequestDialog(true)}>
+              <MessageSquare className="h-4 w-4 me-1" />{t('sendStatusRequest')}
+            </Button>
             <Select value={caseData.status} onValueChange={updateStatus}>
               <SelectTrigger className="w-44">
                 <SelectValue />
@@ -175,6 +228,7 @@ export default function CaseDetailPage() {
               <TabsTrigger value="tasks">משימות ({caseData.tasks?.length ?? 0})</TabsTrigger>
               <TabsTrigger value="comments">הערות ({comments.length})</TabsTrigger>
               <TabsTrigger value="documents">מסמכים ({caseData.documents?.length ?? 0})</TabsTrigger>
+              <TabsTrigger value="financial">{t('financial')}</TabsTrigger>
               <TabsTrigger value="details">פרטים</TabsTrigger>
             </TabsList>
 
@@ -271,6 +325,54 @@ export default function CaseDetailPage() {
               ))}
             </TabsContent>
 
+            {/* Financial tab */}
+            <TabsContent value="financial" className="space-y-4">
+              {user?.role === 'ADMIN' && !editingFinancials && (
+                <Button size="sm" variant="outline" onClick={() => setEditingFinancials(true)}>{t('edit')}</Button>
+              )}
+              {editingFinancials ? (
+                <form onSubmit={saveFinancials} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>{t('courtCaseNumber')}</Label>
+                      <input className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" value={financialForm.courtCaseNumber ?? ''} onChange={e => setFinancialForm((p: any) => ({ ...p, courtCaseNumber: e.target.value }))} />
+                    </div>
+                    {(['initialPrice', 'totalCaseValue', 'workHours', 'clientProposal', 'totalUsed'] as const).map(k => (
+                      <div key={k}>
+                        <Label>{t(k)}{k !== 'workHours' ? ' (₪)' : ''}</Label>
+                        <input type="number" min="0" step="any" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" value={financialForm[k] ?? ''} onChange={e => setFinancialForm((p: any) => ({ ...p, [k]: e.target.value }))} />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="submit" size="sm">{t('save')}</Button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setEditingFinancials(false)}>{t('cancel')}</Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  {caseData.courtCaseNumber && (
+                    <div><span className="text-muted-foreground">{t('courtCaseNumber')}: </span><span className="font-medium">{caseData.courtCaseNumber}</span></div>
+                  )}
+                  {([
+                    ['initialPrice', t('initialPrice')],
+                    ['totalCaseValue', t('totalCaseValue')],
+                    ['workHours', t('workHours')],
+                    ['clientProposal', t('clientProposal')],
+                    ['totalUsed', t('totalUsed')],
+                  ] as [string, string][]).map(([k, label]) => caseData[k] != null ? (
+                    <div key={k}>
+                      <span className="text-muted-foreground">{label}: </span>
+                      <span className="font-medium">{k === 'workHours' ? `${caseData[k]} שע'` : `₪${Number(caseData[k]).toLocaleString()}`}</span>
+                    </div>
+                  ) : null)}
+                  {!caseData.initialPrice && !caseData.totalCaseValue && !caseData.workHours && !caseData.courtCaseNumber && (
+                    <p className="col-span-2 text-muted-foreground text-sm">לא הוזנו נתונים פיננסיים</p>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+
             {/* Details tab */}
             <TabsContent value="details">
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -300,8 +402,25 @@ export default function CaseDetailPage() {
           </Tabs>
         </div>
 
-        {/* Sidebar: assigned employees */}
+        {/* Sidebar */}
         <div className="space-y-3">
+          {statusRequests.filter(r => !r.resolved).length > 0 && (
+            <div className="border border-orange-300 bg-orange-50 rounded-lg p-4">
+              <h3 className="font-medium text-sm text-orange-800 mb-2">{t('pendingRequests')}</h3>
+              {statusRequests.filter(r => !r.resolved).map(req => (
+                <div key={req.id} className="text-xs space-y-1 mb-3 pb-3 border-b border-orange-200 last:border-0 last:mb-0 last:pb-0">
+                  <p className="font-medium">{req.fromUser.name} → {req.toUser.name}</p>
+                  <p className="text-orange-700">{req.message}</p>
+                  <p className="text-orange-500">{formatDateTime(req.createdAt)}</p>
+                  {(user?.role === 'ADMIN' || user?.id === req.toUserId) && (
+                    <button onClick={() => resolveStatusRequest(req.id)} className="text-xs px-2 py-0.5 rounded border border-orange-400 hover:bg-orange-100 transition-colors">
+                      {t('resolveRequest')}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
           <div className="border rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-medium text-sm">{t('assignedTo')}</h3>
@@ -365,6 +484,39 @@ export default function CaseDetailPage() {
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowTaskDialog(false)}>{t('cancel')}</Button>
               <Button type="submit">{t('create')}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Status Request Dialog */}
+      <Dialog open={showStatusRequestDialog} onOpenChange={setShowStatusRequestDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t('sendStatusRequest')}</DialogTitle></DialogHeader>
+          <form onSubmit={sendStatusRequest} className="space-y-4">
+            <div>
+              <Label>עובד</Label>
+              <Select value={statusRequestForm.toUserId} onValueChange={v => setStatusRequestForm(p => ({ ...p, toUserId: v }))}>
+                <SelectTrigger><SelectValue placeholder="בחר עובד" /></SelectTrigger>
+                <SelectContent>
+                  {caseData.assignments?.map((a: any) => (
+                    <SelectItem key={a.userId} value={a.userId}>{a.user?.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>תוכן הבקשה</Label>
+              <Textarea
+                value={statusRequestForm.message}
+                onChange={e => setStatusRequestForm(p => ({ ...p, message: e.target.value }))}
+                rows={3}
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowStatusRequestDialog(false)}>{t('cancel')}</Button>
+              <Button type="submit" disabled={!statusRequestForm.toUserId}>שלח</Button>
             </DialogFooter>
           </form>
         </DialogContent>

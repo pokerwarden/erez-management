@@ -19,6 +19,8 @@ export default function NewCasePage() {
   const [form, setForm] = useState({
     title: '', clientName: '', clientEmail: '', clientPhone: '',
     description: '', caseType: '', courtDate: '', courtName: '',
+    courtCaseNumber: '',
+    initialPrice: '', totalCaseValue: '', workHours: '', clientProposal: '', totalUsed: '',
   })
   const [loading, setLoading] = useState(false)
 
@@ -31,7 +33,15 @@ export default function NewCasePage() {
     e.preventDefault()
     setLoading(true)
     try {
-      const res = await api.post('/cases', form)
+      const payload = {
+        ...form,
+        initialPrice: form.initialPrice ? parseFloat(form.initialPrice) : undefined,
+        totalCaseValue: form.totalCaseValue ? parseFloat(form.totalCaseValue) : undefined,
+        workHours: form.workHours ? parseFloat(form.workHours) : undefined,
+        clientProposal: form.clientProposal ? parseFloat(form.clientProposal) : undefined,
+        totalUsed: form.totalUsed ? parseFloat(form.totalUsed) : undefined,
+      }
+      const res = await api.post('/cases', payload)
       showToast('התיק נוצר בהצלחה', '', 'success')
       navigate(`/cases/${res.data.id}`)
     } catch (err: any) {
@@ -88,9 +98,38 @@ export default function NewCasePage() {
                 <Label>{t('courtName')}</Label>
                 <Input value={form.courtName} onChange={set('courtName')} />
               </div>
+              <div>
+                <Label>{t('courtCaseNumber')}</Label>
+                <Input value={form.courtCaseNumber} onChange={set('courtCaseNumber')} placeholder="מספר שמקצה בית המשפט" />
+              </div>
               <div className="col-span-2">
                 <Label>{t('description')}</Label>
                 <Textarea value={form.description} onChange={set('description')} rows={4} />
+              </div>
+              <div className="col-span-2 border-t pt-4">
+                <h3 className="font-medium mb-3">{t('financial')}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>{t('initialPrice')} (₪)</Label>
+                    <Input type="number" min="0" value={form.initialPrice} onChange={set('initialPrice')} />
+                  </div>
+                  <div>
+                    <Label>{t('totalCaseValue')} (₪)</Label>
+                    <Input type="number" min="0" value={form.totalCaseValue} onChange={set('totalCaseValue')} />
+                  </div>
+                  <div>
+                    <Label>{t('workHours')}</Label>
+                    <Input type="number" min="0" step="0.5" value={form.workHours} onChange={set('workHours')} />
+                  </div>
+                  <div>
+                    <Label>{t('clientProposal')} (₪)</Label>
+                    <Input type="number" min="0" value={form.clientProposal} onChange={set('clientProposal')} />
+                  </div>
+                  <div>
+                    <Label>{t('totalUsed')} (₪)</Label>
+                    <Input type="number" min="0" value={form.totalUsed} onChange={set('totalUsed')} />
+                  </div>
+                </div>
               </div>
             </div>
             <div className="flex gap-3 justify-end">

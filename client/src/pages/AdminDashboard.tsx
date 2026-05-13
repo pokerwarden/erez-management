@@ -23,6 +23,21 @@ interface Stats {
   pendingTasks: number
 }
 
+interface OverviewCase {
+  id: string
+  caseNumber: string
+  courtCaseNumber?: string
+  title: string
+  status: string
+  assignments: { userId: string; user: { id: string; name: string } }[]
+  tasks: { id: string; status: string; assigneeId: string }[]
+}
+
+interface OverviewUser {
+  id: string
+  name: string
+}
+
 interface Employee {
   id: string
   name: string
@@ -36,6 +51,8 @@ export default function AdminDashboard() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [version, setVersion] = useState<VersionInfo>({ current: '', updateAvailable: false, checking: false })
+  const [overviewCases, setOverviewCases] = useState<OverviewCase[]>([])
+  const [overviewUsers, setOverviewUsers] = useState<OverviewUser[]>([])
 
   async function checkForUpdates() {
     setVersion(v => ({ ...v, checking: true }))
@@ -83,6 +100,12 @@ export default function AdminDashboard() {
           pendingTaskCount: tasksRes.data.tasks.filter((t: any) => t.assigneeId === u.id && t.status !== 'DONE').length,
         }))
         setEmployees(empStats)
+
+        const overviewRes = await api.get('/cases/overview').catch(() => null)
+        if (overviewRes) {
+          setOverviewCases(overviewRes.data.cases)
+          setOverviewUsers(overviewRes.data.users)
+        }
       } finally {
         setLoading(false)
       }
@@ -212,6 +235,55 @@ export default function AdminDashboard() {
           )}
         </CardContent>
       </Card>
+      {/* Cross-employee overview */}
+      {overviewCases.length > 0 && overviewUsers.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">{t('overview')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-right py-2 px-3 font-medium">תיק</th>
+                    <th className="text-right py-2 px-3 font-medium">סטטוס</th>
+                    {overviewUsers.map(u => (
+                      <th key={u.id} className="text-right py-2 px-3 font-medium">{u.name}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {overviewCases.map(c => (
+                    <tr key={c.id} className="border-b hover:bg-muted/50">
+                      <td className="py-2 px-3">
+                        <Link to={`/cases/${c.id}`} className="font-medium hover:underline text-primary">{c.title}</Link>
+                        <div className="text-xs text-muted-foreground">{c.courtCaseNumber || c.caseNumber}</div>
+                      </td>
+                      <td className="py-2 px-3 text-xs text-muted-foreground">{t(c.status)}</td>
+                      {overviewUsers.map(u => {
+                        const isAssigned = c.assignments.some(a => a.userId === u.id)
+                        if (!isAssigned) return <td key={u.id} className="py-2 px-3 text-center text-muted-foreground">—</td>
+                        const userTasks = c.tasks.filter(task => task.assigneeId === u.id)
+                        let label = 'לביצוע'
+                        let cls = 'bg-slate-100 text-slate-700'
+                        if (userTasks.length === 0) { label = 'מוקצה'; cls = 'bg-blue-100 text-blue-700' }
+                        else if (userTasks.every(task => task.status === 'DONE')) { label = 'הושלם'; cls = 'bg-green-100 text-green-700' }
+                        else if (userTasks.some(task => task.status === 'IN_PROGRESS')) { label = 'בטיפול'; cls = 'bg-yellow-100 text-yellow-700' }
+                        return (
+                          <td key={u.id} className="py-2 px-3">
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{label}</span>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

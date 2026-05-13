@@ -13,6 +13,7 @@ const taskSchema = z.object({
   status: z.enum(['TODO', 'IN_PROGRESS', 'DONE']).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
   dueDate: z.string().optional(),
+  billing: z.number().optional().nullable(),
   caseId: z.string().optional(),
   assigneeId: z.string(),
 })
