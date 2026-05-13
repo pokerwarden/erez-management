@@ -42,6 +42,7 @@ Source: "..\scripts\backup-gdrive.bat";           DestDir: "{app}\scripts";   Fl
 Source: "..\scripts\setup-gdrive-auth.bat";       DestDir: "{app}\scripts";   Flags: ignoreversion
 Source: "..\scripts\setup-tasks.bat";             DestDir: "{app}\scripts";   Flags: ignoreversion
 Source: "..\scripts\remove-tasks.bat";            DestDir: "{app}\scripts";   Flags: ignoreversion
+Source: "..\scripts\update-app.bat";              DestDir: "{app}\scripts";   Flags: ignoreversion
 Source: "open-app.bat";                           DestDir: "{app}";           Flags: ignoreversion
 Source: "backup-now.bat";                         DestDir: "{app}";           Flags: ignoreversion
 
@@ -49,6 +50,7 @@ Source: "backup-now.bat";                         DestDir: "{app}";           Fl
 Name: "{group}\פתח מערכת ניהול תיקים";   Filename: "{app}\open-app.bat"
 Name: "{group}\גיבוי עכשיו";             Filename: "{app}\backup-now.bat"
 Name: "{group}\הגדרת Google Drive";       Filename: "{app}\scripts\setup-gdrive-auth.bat"
+Name: "{group}\עדכן מערכת";              Filename: "{app}\scripts\update-app.bat"; Comment: "הורד והתקן את הגרסה האחרונה"
 Name: "{group}\הסר התקנה";               Filename: "{uninstallexe}"
 Name: "{autodesktop}\ניהול תיקים";       Filename: "{app}\open-app.bat"; Tasks: desktopicon
 

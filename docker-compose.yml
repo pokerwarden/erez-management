@@ -1,6 +1,6 @@
 services:
   app:
-    image: lawfirm-system:latest
+    image: pokerwarden/lawfirm-system:latest
     restart: unless-stopped
     ports:
       - "${PORT:-4000}:3000"
