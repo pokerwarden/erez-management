@@ -33,18 +33,19 @@ Name: "autostart";    Description: "הפעל את המערכת אוטומטית 
 Name: "autobackup";   Description: "גבה אוטומטית ל-Google Drive ({#BackupEmail}) כל שעתיים"; GroupDescription: "גיבוי:"; Flags: checked
 
 [Files]
-Source: "..\docker-compose.yml";                  DestDir: "{app}";           Flags: ignoreversion
-Source: "..\Dockerfile";                           DestDir: "{app}";           Flags: ignoreversion
-Source: "..\.env.example";                        DestDir: "{app}";           Flags: ignoreversion onlyifdoesntexist
-Source: "..\scripts\start-app.bat";               DestDir: "{app}\scripts";   Flags: ignoreversion
-Source: "..\scripts\stop-app.bat";                DestDir: "{app}\scripts";   Flags: ignoreversion
-Source: "..\scripts\backup-gdrive.bat";           DestDir: "{app}\scripts";   Flags: ignoreversion
-Source: "..\scripts\setup-gdrive-auth.bat";       DestDir: "{app}\scripts";   Flags: ignoreversion
-Source: "..\scripts\setup-tasks.bat";             DestDir: "{app}\scripts";   Flags: ignoreversion
-Source: "..\scripts\remove-tasks.bat";            DestDir: "{app}\scripts";   Flags: ignoreversion
-Source: "..\scripts\update-app.bat";              DestDir: "{app}\scripts";   Flags: ignoreversion
-Source: "open-app.bat";                           DestDir: "{app}";           Flags: ignoreversion
-Source: "backup-now.bat";                         DestDir: "{app}";           Flags: ignoreversion
+Source: "..\docker-compose.yml";          DestDir: "{app}";           Flags: ignoreversion
+Source: "..\Dockerfile";                  DestDir: "{app}";           Flags: ignoreversion
+Source: "..\version.txt";                 DestDir: "{app}";           Flags: ignoreversion
+Source: "..\.env.example";               DestDir: "{app}";           Flags: ignoreversion onlyifdoesntexist
+Source: "scripts\start-app.bat";         DestDir: "{app}\scripts";   Flags: ignoreversion
+Source: "scripts\stop-app.bat";          DestDir: "{app}\scripts";   Flags: ignoreversion
+Source: "scripts\backup-gdrive.bat";     DestDir: "{app}\scripts";   Flags: ignoreversion
+Source: "scripts\setup-gdrive-auth.bat"; DestDir: "{app}\scripts";   Flags: ignoreversion
+Source: "scripts\setup-tasks.bat";       DestDir: "{app}\scripts";   Flags: ignoreversion
+Source: "scripts\remove-tasks.bat";      DestDir: "{app}\scripts";   Flags: ignoreversion
+Source: "scripts\update-app.bat";        DestDir: "{app}\scripts";   Flags: ignoreversion
+Source: "open-app.bat";                  DestDir: "{app}";           Flags: ignoreversion
+Source: "backup-now.bat";                DestDir: "{app}";           Flags: ignoreversion
 
 [Icons]
 Name: "{group}\פתח מערכת ניהול תיקים";   Filename: "{app}\open-app.bat"
@@ -58,8 +59,8 @@ Name: "{autodesktop}\ניהול תיקים";       Filename: "{app}\open-app.bat
 ; 1. Check Docker is running
 Filename: "cmd.exe"; Parameters: "/c docker info >nul 2>&1"; Flags: runhidden waituntilterminated; Check: not DockerRunning
 
-; 2. Create .env if not exists
-Filename: "cmd.exe"; Parameters: "/c if not exist ""{app}\.env"" copy ""{app}\.env.example"" ""{app}\.env"""; Flags: runhidden
+; 2. Generate .env with random secure passwords if not exists
+Filename: "powershell.exe"; Parameters: "-Command ""if (-not (Test-Path '{app}\.env')) {{ $pg = -join ((65..90)+(97..122)+(48..57) | Get-Random -Count 24 | % {{[char]$_}}); $jwt = -join ((65..90)+(97..122)+(48..57) | Get-Random -Count 48 | % {{[char]$_}}); $n8n = -join ((65..90)+(97..122)+(48..57) | Get-Random -Count 24 | % {{[char]$_}}); $content = ""FIRM_NAME=משרד עורכי דין`nPORT=4000`nPOSTGRES_PASSWORD=$pg`nDATABASE_URL=postgresql://postgres:$pg@db:5432/lawfirm`nJWT_SECRET=$jwt`nN8N_WEBHOOK_BASE=http://n8n:5678/webhook`nN8N_WEBHOOK_SECRET=$n8n`nN8N_USER=admin`nN8N_PASSWORD=$n8n`nUPLOAD_DIR=/app/uploads`nMAX_FILE_SIZE_MB=20""; Set-Content -Path '{app}\.env' -Value $content -Encoding UTF8 }}""; Flags: runhidden waituntilterminated
 
 ; 3. Download rclone (portable, no install needed)
 Filename: "powershell.exe"; Parameters: "-Command ""$d='{app}\rclone'; New-Item -ItemType Directory -Force -Path $d | Out-Null; Invoke-WebRequest 'https://downloads.rclone.org/rclone-current-windows-amd64.zip' -OutFile '$d\rclone.zip'; Expand-Archive '$d\rclone.zip' -DestinationPath '$d\tmp' -Force; Copy-Item '$d\tmp\rclone-*-windows-amd64\rclone.exe' '$d\rclone.exe' -Force; Remove-Item '$d\tmp','$d\rclone.zip' -Recurse -Force"""; Flags: runhidden waituntilterminated; StatusMsg: "מוריד כלי גיבוי..."; Tasks: autobackup

@@ -127,7 +127,7 @@ const he = {
   totalOpenCases: 'תיקים פתוחים',
   overdueTasks: 'משימות שפג תוקפן',
   pendingTasks: 'משימות ממתינות',
-  employeeWorkload: 'עומס עובדים',
+  employeeWorkload: 'עובדים',
   activeCases: 'תיקים פעילים',
   pendingTasksCount: 'משימות פעילות',
 

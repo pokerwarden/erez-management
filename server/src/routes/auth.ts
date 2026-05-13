@@ -60,12 +60,13 @@ router.post('/logout', (_req, res) => {
 })
 
 router.get('/me', requireAuth, async (req, res) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.user!.id },
-    select: { id: true, name: true, email: true, role: true, avatarUrl: true, createdAt: true },
+  res.json({
+    id: req.user!.id,
+    name: req.user!.name,
+    email: req.user!.email,
+    role: req.user!.role,
+    avatarUrl: null,
   })
-  if (!user) return res.status(404).json({ error: 'User not found' })
-  res.json(user)
 })
 
 export default router
