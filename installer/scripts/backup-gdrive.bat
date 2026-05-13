@@ -1,36 +1,47 @@
 @echo off
 cd /d "C:\LawFirmSystem"
 
-:: Find Google Drive folder (tries common locations)
-set GDRIVE=
-if exist "%USERPROFILE%\Google Drive\My Drive" set GDRIVE=%USERPROFILE%\Google Drive\My Drive
-if exist "%USERPROFILE%\Google Drive" set GDRIVE=%USERPROFILE%\Google Drive
-if exist "%USERPROFILE%\My Drive" set GDRIVE=%USERPROFILE%\My Drive
-if exist "G:\My Drive" set GDRIVE=G:\My Drive
-if exist "G:\Google Drive" set GDRIVE=G:\Google Drive
+set RCLONE=C:\LawFirmSystem\rclone\rclone.exe
+set CONFIG=C:\LawFirmSystem\rclone\rclone.conf
+set LOCAL_BACKUP=C:\LawFirmSystem\backups
+set REMOTE_FOLDER=gdrive:LawFirmBackup
 
-:: Fallback to Desktop if Google Drive not found
-if "%GDRIVE%"=="" set GDRIVE=%USERPROFILE%\Desktop\LawFirmBackup
-
-:: Create backup folder
-set BACKUP_DIR=%GDRIVE%\LawFirmBackup
-if not exist "%BACKUP_DIR%" mkdir "%BACKUP_DIR%"
-
-:: Keep only last 7 days of backups
-forfiles /p "%BACKUP_DIR%" /s /m *.sql /d -7 /c "cmd /c del @path" 2>nul
+:: Create local backup folder
+if not exist "%LOCAL_BACKUP%" mkdir "%LOCAL_BACKUP%"
 
 :: Timestamp
-for /f "tokens=1-3 delims=/ " %%a in ("%date%") do set DATE=%%c%%b%%a
-for /f "tokens=1-2 delims=: " %%a in ("%time%") do set TIME=%%a%%b
-set TIME=%TIME: =0%
-set STAMP=%DATE%_%TIME%
+for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set DT=%%I
+set STAMP=%DT:~0,8%_%DT:~8,4%
 
-:: Backup database
-echo Backing up database...
-docker compose exec -T db pg_dump -U postgres lawfirm > "%BACKUP_DIR%\db_%STAMP%.sql"
+:: Backup database to local file
+echo [%date% %time%] Starting backup...
+docker compose exec -T db pg_dump -U postgres lawfirm > "%LOCAL_BACKUP%\db_%STAMP%.sql" 2>nul
 
-if exist "%BACKUP_DIR%\db_%STAMP%.sql" (
-    echo Backup saved to: %BACKUP_DIR%\db_%STAMP%.sql
-) else (
-    echo WARNING: Backup may have failed.
+if not exist "%LOCAL_BACKUP%\db_%STAMP%.sql" (
+    echo [%date% %time%] ERROR: Database backup failed - is the app running?
+    exit /b 1
 )
+
+echo [%date% %time%] Database dumped successfully.
+
+:: Upload to Google Drive using rclone
+if exist "%RCLONE%" (
+    if exist "%CONFIG%" (
+        echo [%date% %time%] Uploading to Google Drive ^(officeerez41@gmail.com^)...
+        "%RCLONE%" copy "%LOCAL_BACKUP%\db_%STAMP%.sql" "%REMOTE_FOLDER%" --config "%CONFIG%" --log-level ERROR
+        if errorlevel 1 (
+            echo [%date% %time%] WARNING: Upload to Google Drive failed. Backup kept locally.
+        ) else (
+            echo [%date% %time%] Uploaded to Google Drive successfully.
+        )
+    ) else (
+        echo [%date% %time%] WARNING: Google Drive not configured. Run setup-gdrive-auth.bat
+    )
+) else (
+    echo [%date% %time%] WARNING: rclone not found. Backup saved locally only.
+)
+
+:: Delete local backups older than 7 days
+forfiles /p "%LOCAL_BACKUP%" /s /m *.sql /d -7 /c "cmd /c del @path" 2>nul
+
+echo [%date% %time%] Backup complete: db_%STAMP%.sql
