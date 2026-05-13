@@ -24,11 +24,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const isDemo = import.meta.env.VITE_DEMO_MODE === 'true'
+
   async function fetchUser() {
     try {
       const res = await api.get('/auth/me')
       setUser(res.data)
-      initSocket(res.data.id)
+      if (!isDemo) initSocket(res.data.id)
     } catch {
       setUser(null)
     } finally {
@@ -43,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function login(email: string, password: string) {
     const res = await api.post('/auth/login', { email, password })
     setUser(res.data.user)
-    initSocket(res.data.user.id)
+    if (!isDemo) initSocket(res.data.user.id)
   }
 
   async function logout() {

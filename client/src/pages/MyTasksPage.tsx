@@ -29,8 +29,8 @@ export default function MyTasksPage() {
 
   const fetchTasks = useCallback(async () => {
     try {
-      const params = user?.role === 'ADMIN' ? '' : `?assignee=${user?.id}`
-      const res = await api.get(`/tasks${params}&limit=200`)
+      const params = user?.role === 'ADMIN' ? '?limit=200' : `?assignee=${user?.id}&limit=200`
+      const res = await api.get(`/tasks${params}`)
       setTasks(res.data.tasks)
     } finally {
       setLoading(false)
