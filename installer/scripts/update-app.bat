@@ -7,45 +7,34 @@ echo   עדכון מערכת ניהול תיקים
 echo ============================================
 echo.
 
-:: Check current version from running app
-echo בודק גרסה נוכחית...
+:: Check current version
 set CURRENT_VERSION=לא ידועה
-for /f "usebackq delims=" %%V in (`curl -s http://localhost:4000/api/version 2^>nul`) do (
-    for /f "tokens=2 delims=:}" %%A in ("%%V") do (
-        set RAW=%%A
-        setlocal enabledelayedexpansion
-        set CURRENT_VERSION=!RAW:"=!
-        endlocal & set CURRENT_VERSION=%CURRENT_VERSION: =%
-    )
-)
+for /f "delims=" %%V in ('curl -s http://localhost:4000/api/version 2^>nul') do set RAW=%%V
+for /f "tokens=2 delims=:}" %%A in ("%RAW%") do set CURRENT_VERSION=%%A
+set CURRENT_VERSION=%CURRENT_VERSION:"=%
+set CURRENT_VERSION=%CURRENT_VERSION: =%
 echo גרסה נוכחית: %CURRENT_VERSION%
 
 :: Check latest version from GitHub
 echo בודק עדכונים ב-GitHub...
-set LATEST_VERSION=
-for /f "usebackq delims=" %%L in (`curl -s https://api.github.com/repos/pokerwarden/erez-management/releases/latest 2^>nul ^| findstr "tag_name"`) do (
-    for /f "tokens=2 delims=:}" %%A in ("%%L") do (
-        set RAW=%%A
-        setlocal enabledelayedexpansion
-        set LATEST_VERSION=!RAW:"=!
-        set LATEST_VERSION=!LATEST_VERSION: =!
-        set LATEST_VERSION=!LATEST_VERSION:v=!
-        endlocal & set LATEST_VERSION=%LATEST_VERSION%
-    )
-)
+for /f "delims=" %%L in ('curl -s https://api.github.com/repos/pokerwarden/erez-management/releases/latest 2^>nul ^| findstr "tag_name"') do set TAGLINE=%%L
+for /f "tokens=2 delims=:}" %%A in ("%TAGLINE%") do set LATEST_TAG=%%A
+set LATEST_TAG=%LATEST_TAG:"=%
+set LATEST_TAG=%LATEST_TAG: =%
+set LATEST_TAG=%LATEST_TAG:,=%
+set LATEST_VERSION=%LATEST_TAG:v=%
 
 if "%LATEST_VERSION%"=="" (
-    echo לא ניתן לבדוק עדכונים. ממשיך בעדכון ידני...
-    goto :do_update
+    echo לא ניתן להגיע ל-GitHub. בדוק חיבור אינטרנט.
+    pause
+    exit /b 1
 )
 
 echo גרסה זמינה:  %LATEST_VERSION%
-echo גרסה נוכחית: %CURRENT_VERSION%
 echo.
 
 if "%LATEST_VERSION%"=="%CURRENT_VERSION%" (
     echo המערכת מעודכנת! אין צורך בעדכון.
-    echo.
     pause
     exit /b 0
 )
@@ -53,41 +42,39 @@ if "%LATEST_VERSION%"=="%CURRENT_VERSION%" (
 echo נמצאה גרסה חדשה: %LATEST_VERSION%
 echo.
 
-:do_update
 :: Backup before update
-echo שלב 1/3 - מבצע גיבוי לפני העדכון...
+echo שלב 1/4 - מגבה לפני העדכון...
 call "C:\LawFirmSystem\scripts\backup-gdrive.bat" >nul 2>&1
-if errorlevel 1 (
-    echo אזהרה: הגיבוי נכשל. האם להמשיך בעדכון?
-    choice /c YN /m "המשך ללא גיבוי"
-    if errorlevel 2 exit /b 1
-)
 echo הגיבוי הושלם.
 echo.
 
-:: Pull new image from Docker Hub
-echo שלב 2/3 - מוריד גרסה חדשה מ-Docker Hub...
-docker compose pull
+:: Download new image from GitHub Release
+echo שלב 2/4 - מוריד גרסה חדשה מ-GitHub...
+curl -L -o "C:\LawFirmSystem\lawfirm-system.tar.gz" "https://github.com/pokerwarden/erez-management/releases/download/%LATEST_TAG%/lawfirm-system.tar.gz" --progress-bar
 if errorlevel 1 (
-    echo.
-    echo שגיאה: לא ניתן להוריד את הגרסה החדשה.
-    echo בדוק שיש חיבור לאינטרנט ונסה שוב.
+    echo שגיאה בהורדה. בדוק חיבור אינטרנט ונסה שוב.
     pause
     exit /b 1
 )
 echo ההורדה הושלמה.
 echo.
 
-:: Restart with new image
-echo שלב 3/3 - מפעיל מחדש עם הגרסה החדשה...
-docker compose up -d
+:: Load new image into Docker
+echo שלב 3/4 - טוען גרסה חדשה ל-Docker...
+docker load -i "C:\LawFirmSystem\lawfirm-system.tar.gz"
 if errorlevel 1 (
-    echo שגיאה בהפעלת המערכת. בדוק את Docker Desktop.
+    echo שגיאה בטעינת הגרסה.
     pause
     exit /b 1
 )
-
+del "C:\LawFirmSystem\lawfirm-system.tar.gz" >nul 2>&1
 echo.
+
+:: Restart with new image
+echo שלב 4/4 - מפעיל מחדש...
+docker compose up -d
+echo.
+
 echo ============================================
 echo   העדכון הושלם בהצלחה!
 echo   גרסה: %LATEST_VERSION%

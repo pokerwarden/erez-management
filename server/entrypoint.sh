@@ -1,8 +1,10 @@
 #!/bin/sh
-set -e
 
 echo "Pushing database schema..."
-npx prisma db push --accept-data-loss
+until npx prisma db push --accept-data-loss; do
+  echo "Retrying in 5s..."
+  sleep 5
+done
 
 echo "Starting server..."
 exec node dist/index.js

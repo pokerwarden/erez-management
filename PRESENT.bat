@@ -17,23 +17,14 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Check if image exists (either local build name or full name)
+:: Check if image exists
 docker image inspect lawfirm-system:latest >nul 2>&1
 if errorlevel 1 (
-    docker image inspect pokerwarden/lawfirm-system:latest >nul 2>&1
-    if errorlevel 1 (
-        echo The app image is not built yet.
-        echo Please run DOCKER-BUILD-AND-DEPLOY.bat first ^(only needed once^).
-        echo.
-        pause
-        exit /b 1
-    )
-)
-
-:: Ensure compose can find the image locally
-docker image inspect pokerwarden/lawfirm-system:latest >nul 2>&1
-if errorlevel 1 (
-    docker tag lawfirm-system:latest pokerwarden/lawfirm-system:latest
+    echo The app image is not built yet.
+    echo Please run DOCKER-BUILD-AND-DEPLOY.bat first ^(only needed once^).
+    echo.
+    pause
+    exit /b 1
 )
 
 :: Check if .env exists, create from example if not

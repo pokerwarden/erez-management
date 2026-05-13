@@ -26,8 +26,6 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Tag with full name so docker-compose finds it locally (no internet needed)
-docker tag lawfirm-system:latest pokerwarden/lawfirm-system:latest
 
 echo.
 echo Build successful!

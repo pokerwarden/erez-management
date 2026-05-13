@@ -28,9 +28,9 @@ CloseApplications=yes
 Name: "hebrew"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon";  Description: "צור קיצור דרך בשולחן העבודה"; GroupDescription: "קיצורי דרך:"; Flags: checked
-Name: "autostart";    Description: "הפעל את המערכת אוטומטית בעת הפעלת המחשב"; GroupDescription: "הגדרות:"; Flags: checked
-Name: "autobackup";   Description: "גבה אוטומטית ל-Google Drive ({#BackupEmail}) כל שעתיים"; GroupDescription: "גיבוי:"; Flags: checked
+Name: "desktopicon";  Description: "צור קיצור דרך בשולחן העבודה"; GroupDescription: "קיצורי דרך:"
+Name: "autostart";    Description: "הפעל את המערכת אוטומטית בעת הפעלת המחשב"; GroupDescription: "הגדרות:"
+Name: "autobackup";   Description: "גבה אוטומטית ל-Google Drive ({#BackupEmail}) כל שעתיים"; GroupDescription: "גיבוי:"
 
 [Files]
 Source: "..\docker-compose.yml";          DestDir: "{app}";           Flags: ignoreversion
@@ -44,6 +44,7 @@ Source: "scripts\setup-gdrive-auth.bat"; DestDir: "{app}\scripts";   Flags: igno
 Source: "scripts\setup-tasks.bat";       DestDir: "{app}\scripts";   Flags: ignoreversion
 Source: "scripts\remove-tasks.bat";      DestDir: "{app}\scripts";   Flags: ignoreversion
 Source: "scripts\update-app.bat";        DestDir: "{app}\scripts";   Flags: ignoreversion
+Source: "scripts\generate-env.bat";     DestDir: "{app}\scripts";   Flags: ignoreversion
 Source: "open-app.bat";                  DestDir: "{app}";           Flags: ignoreversion
 Source: "backup-now.bat";                DestDir: "{app}";           Flags: ignoreversion
 
@@ -60,13 +61,17 @@ Name: "{autodesktop}\ניהול תיקים";       Filename: "{app}\open-app.bat
 Filename: "cmd.exe"; Parameters: "/c docker info >nul 2>&1"; Flags: runhidden waituntilterminated; Check: not DockerRunning
 
 ; 2. Generate .env with random secure passwords if not exists
-Filename: "powershell.exe"; Parameters: "-Command ""if (-not (Test-Path '{app}\.env')) {{ $pg = -join ((65..90)+(97..122)+(48..57) | Get-Random -Count 24 | % {{[char]$_}}); $jwt = -join ((65..90)+(97..122)+(48..57) | Get-Random -Count 48 | % {{[char]$_}}); $n8n = -join ((65..90)+(97..122)+(48..57) | Get-Random -Count 24 | % {{[char]$_}}); $content = ""FIRM_NAME=משרד עורכי דין`nPORT=4000`nPOSTGRES_PASSWORD=$pg`nDATABASE_URL=postgresql://postgres:$pg@db:5432/lawfirm`nJWT_SECRET=$jwt`nN8N_WEBHOOK_BASE=http://n8n:5678/webhook`nN8N_WEBHOOK_SECRET=$n8n`nN8N_USER=admin`nN8N_PASSWORD=$n8n`nUPLOAD_DIR=/app/uploads`nMAX_FILE_SIZE_MB=20""; Set-Content -Path '{app}\.env' -Value $content -Encoding UTF8 }}""; Flags: runhidden waituntilterminated
+Filename: "cmd.exe"; Parameters: "/c ""{app}\scripts\generate-env.bat"" ""{app}\.env"""; Flags: runhidden waituntilterminated
 
 ; 3. Download rclone (portable, no install needed)
 Filename: "powershell.exe"; Parameters: "-Command ""$d='{app}\rclone'; New-Item -ItemType Directory -Force -Path $d | Out-Null; Invoke-WebRequest 'https://downloads.rclone.org/rclone-current-windows-amd64.zip' -OutFile '$d\rclone.zip'; Expand-Archive '$d\rclone.zip' -DestinationPath '$d\tmp' -Force; Copy-Item '$d\tmp\rclone-*-windows-amd64\rclone.exe' '$d\rclone.exe' -Force; Remove-Item '$d\tmp','$d\rclone.zip' -Recurse -Force"""; Flags: runhidden waituntilterminated; StatusMsg: "מוריד כלי גיבוי..."; Tasks: autobackup
 
-; 4. Pull Docker image
-Filename: "cmd.exe"; Parameters: "/c cd /d ""{app}"" && docker compose pull 2>nul || docker build -t lawfirm-system:latest ."; Flags: runhidden waituntilterminated; StatusMsg: "מוריד קבצי מערכת (עשוי לקחת מספר דקות)..."
+; 3b. Open firewall port 4000 so other computers on the network can connect
+Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""LawFirmSystem"" dir=in action=allow protocol=TCP localport=4000 profile=private,domain"; Flags: runhidden waituntilterminated
+
+; 4. Download Docker image from GitHub Release and load it
+Filename: "powershell.exe"; Parameters: "-Command ""$url='https://github.com/pokerwarden/erez-management/releases/latest/download/lawfirm-system.tar.gz'; $out='{app}\lawfirm-system.tar.gz'; Invoke-WebRequest $url -OutFile $out"""; Flags: runhidden waituntilterminated; StatusMsg: "מוריד קבצי מערכת (עשוי לקחת מספר דקות)..."
+Filename: "cmd.exe"; Parameters: "/c docker load -i ""{app}\lawfirm-system.tar.gz"" && del ""{app}\lawfirm-system.tar.gz"""; Flags: runhidden waituntilterminated; StatusMsg: "מתקין קבצי מערכת..."
 
 ; 5. Start app
 Filename: "cmd.exe"; Parameters: "/c cd /d ""{app}"" && docker compose up -d"; Flags: runhidden waituntilterminated; StatusMsg: "מפעיל את המערכת..."
@@ -83,6 +88,7 @@ Filename: "powershell.exe"; Parameters: "-Command ""Start-Sleep 15; Start-Proces
 [UninstallRun]
 Filename: "cmd.exe"; Parameters: "/c ""{app}\scripts\remove-tasks.bat"""; Flags: runhidden
 Filename: "cmd.exe"; Parameters: "/c cd /d ""{app}"" && docker compose down -v"; Flags: runhidden waituntilterminated
+Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""LawFirmSystem"""; Flags: runhidden
 
 [Code]
 function DockerRunning: Boolean;
