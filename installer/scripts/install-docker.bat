@@ -6,6 +6,10 @@ if not errorlevel 1 (
     exit /b 0
 )
 
+:: Write Docker Desktop settings to skip login/onboarding screen
+echo Configuring Docker Desktop settings...
+powershell -Command "$d='%APPDATA%\Docker'; New-Item -ItemType Directory -Force -Path $d | Out-Null; '{\"displayedOnboarding\":true,\"licenseTermsVersion\":2,\"analyticsEnabled\":false,\"skipUpdateCheck\":true,\"autoStart\":false}' | Set-Content -Path \"$d\settings.json\" -Encoding UTF8"
+
 :: Check if Docker Desktop is installed but just not running
 if exist "C:\Program Files\Docker\Docker\Docker Desktop.exe" (
     echo Starting Docker Desktop...
@@ -25,6 +29,9 @@ if errorlevel 1 (
 echo Installing Docker Desktop...
 "%TEMP%\DockerInstaller.exe" install --quiet --accept-license
 del "%TEMP%\DockerInstaller.exe" >nul 2>&1
+
+:: Write settings again after install (in case install reset them)
+powershell -Command "$d='%APPDATA%\Docker'; New-Item -ItemType Directory -Force -Path $d | Out-Null; '{\"displayedOnboarding\":true,\"licenseTermsVersion\":2,\"analyticsEnabled\":false,\"skipUpdateCheck\":true,\"autoStart\":false}' | Set-Content -Path \"$d\settings.json\" -Encoding UTF8"
 
 :: Start Docker Desktop
 echo Starting Docker Desktop...
