@@ -35,6 +35,9 @@ COPY --from=server-build /app/server/package.json ./
 # Copy React build → served as static files by Express
 COPY --from=client-build /app/client/dist ./public
 
+# Copy version file (embedded in image for /api/version endpoint)
+COPY version.txt ./
+
 # Copy and set up entrypoint
 COPY server/entrypoint.sh ./
 RUN chmod +x entrypoint.sh

@@ -5,8 +5,17 @@ import { t } from '@/lib/i18n'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { FolderOpen, AlertTriangle, CheckSquare, Plus } from 'lucide-react'
+import { FolderOpen, AlertTriangle, CheckSquare, Plus, RefreshCw, Download } from 'lucide-react'
 import { formatDate, isOverdue } from '@/lib/utils'
+
+interface VersionInfo {
+  current: string
+  latest?: string
+  updateAvailable: boolean
+  releaseUrl?: string
+  error?: string
+  checking: boolean
+}
 
 interface Stats {
   openCases: number
@@ -26,6 +35,24 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats>({ openCases: 0, overdueTasks: 0, pendingTasks: 0 })
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
+  const [version, setVersion] = useState<VersionInfo>({ current: '', updateAvailable: false, checking: false })
+
+  async function checkForUpdates() {
+    setVersion(v => ({ ...v, checking: true }))
+    try {
+      const res = await api.get('/version/check')
+      setVersion({ ...res.data, checking: false })
+    } catch {
+      setVersion(v => ({ ...v, checking: false, error: 'שגיאה בבדיקת עדכונים' }))
+    }
+  }
+
+  useEffect(() => {
+    // Load current version quietly on mount
+    api.get('/version').then(res => {
+      setVersion(v => ({ ...v, current: res.data.version }))
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -75,6 +102,44 @@ export default function AdminDashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Update banner */}
+      {version.updateAvailable && version.latest ? (
+        <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-800">
+          <Download className="h-4 w-4 shrink-0" />
+          <span className="flex-1">
+            גרסה חדשה זמינה: <strong>v{version.latest}</strong> (נוכחית: v{version.current})
+          </span>
+          <a
+            href={version.releaseUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium underline hover:no-underline"
+          >
+            פרטי גרסה
+          </a>
+          <span className="text-blue-600 text-xs">פתח "עדכן מערכת" מתפריט התחל</span>
+        </div>
+      ) : null}
+
+      {/* Version footer + check button */}
+      {!version.updateAvailable && version.current ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>גרסה: v{version.current}</span>
+          <button
+            onClick={checkForUpdates}
+            disabled={version.checking}
+            className="flex items-center gap-1 hover:text-foreground transition-colors"
+          >
+            <RefreshCw className={`h-3 w-3 ${version.checking ? 'animate-spin' : ''}`} />
+            {version.checking ? 'בודק...' : 'בדוק עדכונים'}
+          </button>
+          {version.error && <span className="text-destructive">{version.error}</span>}
+          {!version.updateAvailable && version.latest && (
+            <span className="text-green-600">המערכת מעודכנת</span>
+          )}
+        </div>
+      ) : null}
 
       {/* Stats cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

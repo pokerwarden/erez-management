@@ -16,6 +16,7 @@ import notificationsRouter from './routes/notifications'
 import usersRouter from './routes/users'
 import settingsRouter from './routes/settings'
 import webhooksRouter from './routes/webhooks'
+import versionRouter from './routes/version'
 
 const app = express()
 const httpServer = http.createServer(app)
@@ -53,6 +54,7 @@ app.use('/api/notifications', notificationsRouter)
 app.use('/api/users', usersRouter)
 app.use('/api/settings', settingsRouter)
 app.use('/api/webhooks', webhooksRouter)
+app.use('/api/version', versionRouter)
 
 // Fallback to React app in production
 if (process.env.NODE_ENV === 'production') {
