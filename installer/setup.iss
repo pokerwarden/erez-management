@@ -64,7 +64,7 @@ Name: "{autodesktop}\ניהול תיקים";       Filename: "{app}\open-app.bat
 
 [Run]
 ; 1. Install Docker Desktop if missing, wait until ready
-Filename: "cmd.exe"; Parameters: "/c ""{app}\scripts\install-docker.bat"""; Flags: runhidden waituntilterminated; StatusMsg: "מכין את סביבת ריצה (Docker)..."
+Filename: "cmd.exe"; Parameters: "/c ""{app}\scripts\install-docker.bat"""; Flags: waituntilterminated; StatusMsg: "מכין את סביבת ריצה (Docker)..."
 
 ; 2. Generate .env with random secure passwords if not exists
 Filename: "cmd.exe"; Parameters: "/c ""{app}\scripts\generate-env.bat"" ""{app}\.env"""; Flags: runhidden waituntilterminated
@@ -98,8 +98,8 @@ Filename: "{app}\scripts\setup-gdrive-auth.bat"; Description: "חבר את Googl
 ; 11. Show remote access URL
 Filename: "{app}\scripts\show-cloudflare-url.bat"; Description: "הצג קישור גישה לעובדים"; Flags: postinstall nowait; Tasks: remotetunnel
 
-; 12. Open app in browser after install
-Filename: "powershell.exe"; Parameters: "-Command ""Start-Sleep 15; Start-Process 'http://localhost:4000'"""; Flags: runhidden nowait postinstall skipifsilent; Description: "פתח את המערכת בדפדפן"
+; 12. Open app in browser after install — poll health endpoint up to 2 minutes
+Filename: "powershell.exe"; Parameters: "-Command ""$i=0; do { Start-Sleep 5; $i++; try { $r=(Invoke-WebRequest 'http://localhost:4000/api/health' -UseBasicParsing -TimeoutSec 3).StatusCode } catch { $r=0 } } while ($r -ne 200 -and $i -lt 24); Start-Process 'http://localhost:4000'"""; Flags: runhidden nowait postinstall skipifsilent; Description: "פתח את המערכת בדפדפן"
 
 [UninstallRun]
 Filename: "cmd.exe"; Parameters: "/c ""{app}\scripts\remove-tasks.bat"""; RunOnceId: "RemoveTasks"; Flags: runhidden
