@@ -105,17 +105,32 @@ jobs:
         shell: powershell
         run: |
           $ver = "${{ steps.version.outputs.VERSION }}"
-          $iss = Get-Content "installer\setup.iss" -Raw
-          $iss = $iss -replace '#define MyAppVersion "[^"]*"', "#define MyAppVersion `"$ver`""
-          Set-Content "installer\setup.iss" $iss -Encoding UTF8
+          # Read as bytes to preserve encoding exactly, only replace ASCII version string
+          $content = [System.IO.File]::ReadAllText("installer\setup.iss", [System.Text.Encoding]::UTF8)
+          $content = $content -replace '#define MyAppVersion "[^"]*"', "#define MyAppVersion `"$ver`""
+          # Write back UTF-8 without BOM (required by Inno Setup)
+          $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+          [System.IO.File]::WriteAllText("installer\setup.iss", $content, $utf8NoBom)
           Write-Host "Updated installer version to $ver"
+
+      - name: Create installer output dir
+        shell: powershell
+        run: New-Item -ItemType Directory -Force -Path "installer\output" | Out-Null
 
       - name: Compile installer
         shell: powershell
         run: |
+          # Find ISCC
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          & $iscc "installer\setup.iss"
-          if ($LASTEXITCODE -ne 0) { Write-Error "Inno Setup compilation failed"; exit 1 }
+          if (-not (Test-Path $iscc)) { $iscc = "C:\Program Files\Inno Setup 6\ISCC.exe" }
+          Write-Host "ISCC path: $iscc"
+          # Compile and capture output
+          $output = & $iscc "installer\setup.iss" 2>&1
+          Write-Host $output
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Inno Setup compilation failed (exit $LASTEXITCODE)"
+            exit 1
+          }
           Write-Host "Installer compiled successfully."
 
       # ── Create GitHub Release ───────────────────────────────────────────────
