@@ -1,3 +1,2 @@
 @echo off
-cd /d "C:\LawFirmSystem"
-docker compose up -d
+net start LawFirmApp 2>nul

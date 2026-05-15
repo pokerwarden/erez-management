@@ -1,6 +1,8 @@
 @echo off
 title עדכון מערכת ניהול תיקים
-cd /d "C:\LawFirmSystem"
+set APP=C:\LawFirmSystem
+set NODE=%APP%\node\node.exe
+set PRISMA=%APP%\app\node_modules\prisma\build\index.js
 
 echo ============================================
 echo   עדכון מערכת ניהול תיקים
@@ -9,19 +11,12 @@ echo.
 
 :: Check current version
 set CURRENT_VERSION=לא ידועה
-for /f "delims=" %%V in ('curl -s http://localhost:4000/api/version 2^>nul') do set RAW=%%V
-for /f "tokens=2 delims=:}" %%A in ("%RAW%") do set CURRENT_VERSION=%%A
-set CURRENT_VERSION=%CURRENT_VERSION:"=%
-set CURRENT_VERSION=%CURRENT_VERSION: =%
+if exist "%APP%\version.txt" set /p CURRENT_VERSION=<"%APP%\version.txt"
 echo גרסה נוכחית: %CURRENT_VERSION%
 
 :: Check latest version from GitHub
-echo בודק עדכונים ב-GitHub...
-for /f "delims=" %%L in ('curl -s https://api.github.com/repos/pokerwarden/erez-management/releases/latest 2^>nul ^| findstr "tag_name"') do set TAGLINE=%%L
-for /f "tokens=2 delims=:}" %%A in ("%TAGLINE%") do set LATEST_TAG=%%A
-set LATEST_TAG=%LATEST_TAG:"=%
-set LATEST_TAG=%LATEST_TAG: =%
-set LATEST_TAG=%LATEST_TAG:,=%
+echo בודק עדכונים...
+for /f "delims=" %%L in ('powershell -Command "(Invoke-WebRequest https://api.github.com/repos/pokerwarden/erez-management/releases/latest -UseBasicParsing | ConvertFrom-Json).tag_name" 2^>nul') do set LATEST_TAG=%%L
 set LATEST_VERSION=%LATEST_TAG:v=%
 
 if "%LATEST_VERSION%"=="" (
@@ -29,8 +24,7 @@ if "%LATEST_VERSION%"=="" (
     pause
     exit /b 1
 )
-
-echo גרסה זמינה:  %LATEST_VERSION%
+echo גרסה זמינה: %LATEST_VERSION%
 echo.
 
 if "%LATEST_VERSION%"=="%CURRENT_VERSION%" (
@@ -42,15 +36,13 @@ if "%LATEST_VERSION%"=="%CURRENT_VERSION%" (
 echo נמצאה גרסה חדשה: %LATEST_VERSION%
 echo.
 
-:: Backup before update
 echo שלב 1/4 - מגבה לפני העדכון...
-call "C:\LawFirmSystem\scripts\backup-gdrive.bat" >nul 2>&1
+call "%APP%\scripts\backup-gdrive.bat" >nul 2>&1
 echo הגיבוי הושלם.
 echo.
 
-:: Download new image from GitHub Release
-echo שלב 2/4 - מוריד גרסה חדשה מ-GitHub...
-curl -L -o "C:\LawFirmSystem\lawfirm-system.tar.gz" "https://github.com/pokerwarden/erez-management/releases/download/%LATEST_TAG%/lawfirm-system.tar.gz" --progress-bar
+echo שלב 2/4 - מוריד גרסה חדשה...
+powershell -Command "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest 'https://github.com/pokerwarden/erez-management/releases/download/%LATEST_TAG%/lawfirm-bundle.zip' -OutFile '%APP%\bundle.zip' -UseBasicParsing"
 if errorlevel 1 (
     echo שגיאה בהורדה. בדוק חיבור אינטרנט ונסה שוב.
     pause
@@ -59,20 +51,17 @@ if errorlevel 1 (
 echo ההורדה הושלמה.
 echo.
 
-:: Load new image into Docker
-echo שלב 3/4 - טוען גרסה חדשה ל-Docker...
-docker load -i "C:\LawFirmSystem\lawfirm-system.tar.gz"
-if errorlevel 1 (
-    echo שגיאה בטעינת הגרסה.
-    pause
-    exit /b 1
-)
-del "C:\LawFirmSystem\lawfirm-system.tar.gz" >nul 2>&1
+echo שלב 3/4 - מתקין גרסה חדשה...
+net stop LawFirmApp >nul 2>&1
+rmdir /s /q "%APP%\app" 2>nul
+powershell -Command "Expand-Archive '%APP%\bundle.zip' -DestinationPath '%APP%' -Force; Remove-Item '%APP%\bundle.zip' -Force"
+echo %LATEST_VERSION%> "%APP%\version.txt"
 echo.
 
-:: Restart with new image
-echo שלב 4/4 - מפעיל מחדש...
-docker compose up -d
+echo שלב 4/4 - מעדכן בסיס נתונים ומפעיל מחדש...
+cd /d "%APP%"
+"%NODE%" "%PRISMA%" db push --schema="%APP%\app\prisma\schema.prisma" --accept-data-loss
+net start LawFirmApp
 echo.
 
 echo ============================================

@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     permissions:
       contents: write
 
@@ -18,18 +18,108 @@ jobs:
 
       - name: Extract version from tag
         id: version
+        shell: bash
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
 
       - name: Update version.txt
+        shell: bash
         run: echo "${{ steps.version.outputs.VERSION }}" > version.txt
 
-      - name: Build Docker image
-        run: docker build -t lawfirm-system:latest .
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
-      - name: Save Docker image as tarball
-        run: docker save lawfirm-system:latest | gzip > lawfirm-system.tar.gz
+      # ── Build React client ──────────────────────────────────────────────────
+      - name: Build React client
+        working-directory: client
+        run: |
+          npm install
+          npm run build
 
-      - name: Create GitHub Release with image attached
+      # ── Build Node.js server ────────────────────────────────────────────────
+      - name: Build Node.js server
+        working-directory: server
+        run: |
+          npm install
+          npx prisma generate
+          npm run build
+
+      # ── Download portable Node.js for bundling ──────────────────────────────
+      - name: Download portable Node.js
+        shell: powershell
+        run: |
+          $ver = "v20.18.1"
+          $url = "https://nodejs.org/dist/$ver/node-$ver-win-x64.zip"
+          Write-Host "Downloading Node.js $ver..."
+          Invoke-WebRequest $url -OutFile node-win.zip -UseBasicParsing
+          Expand-Archive node-win.zip -DestinationPath node-tmp -Force
+          Rename-Item "node-tmp\node-$ver-win-x64" "node-tmp\node"
+          Write-Host "Node.js ready."
+
+      # ── Download NSSM ───────────────────────────────────────────────────────
+      - name: Download NSSM (service manager)
+        shell: powershell
+        run: |
+          Invoke-WebRequest "https://nssm.cc/release/nssm-2.24.zip" -OutFile nssm.zip -UseBasicParsing
+          Expand-Archive nssm.zip -DestinationPath nssm-tmp -Force
+
+      # ── Assemble bundle ─────────────────────────────────────────────────────
+      - name: Create lawfirm-bundle.zip
+        shell: powershell
+        run: |
+          $b = "lawfirm-bundle"
+          New-Item -ItemType Directory -Force -Path $b | Out-Null
+
+          # Portable Node.js runtime
+          Copy-Item "node-tmp\node" "$b\node" -Recurse -Force
+
+          # NSSM service manager
+          Copy-Item "nssm-tmp\nssm-2.24\win64\nssm.exe" "$b\nssm.exe" -Force
+
+          # Server: compiled dist + production node_modules + prisma
+          $app = "$b\app"
+          New-Item -ItemType Directory -Force -Path $app | Out-Null
+          Copy-Item "server\dist"         "$app\dist"         -Recurse -Force
+          Copy-Item "server\node_modules" "$app\node_modules" -Recurse -Force
+          Copy-Item "server\prisma"       "$app\prisma"       -Recurse -Force
+          Copy-Item "server\package.json" "$app\package.json" -Force
+
+          # React build → served as static files by Express
+          Copy-Item "client\dist" "$app\public" -Recurse -Force
+
+          # Version file
+          Copy-Item "version.txt" "$b\version.txt" -Force
+
+          # Zip
+          Write-Host "Compressing bundle..."
+          Compress-Archive -Path "$b\*" -DestinationPath "lawfirm-bundle.zip" -Force
+          $size = [math]::Round((Get-Item lawfirm-bundle.zip).Length / 1MB, 1)
+          Write-Host "Bundle created: lawfirm-bundle.zip ($size MB)"
+
+      # ── Compile Inno Setup installer ────────────────────────────────────────
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Update installer version
+        shell: powershell
+        run: |
+          $ver = "${{ steps.version.outputs.VERSION }}"
+          $iss = Get-Content "installer\setup.iss" -Raw
+          $iss = $iss -replace '#define MyAppVersion "[^"]*"', "#define MyAppVersion `"$ver`""
+          Set-Content "installer\setup.iss" $iss -Encoding UTF8
+          Write-Host "Updated installer version to $ver"
+
+      - name: Compile installer
+        shell: powershell
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          & $iscc "installer\setup.iss"
+          if ($LASTEXITCODE -ne 0) { Write-Error "Inno Setup compilation failed"; exit 1 }
+          Write-Host "Installer compiled successfully."
+
+      # ── Create GitHub Release ───────────────────────────────────────────────
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
@@ -37,16 +127,17 @@ jobs:
           body: |
             ## מה חדש בגרסה ${{ github.ref_name }}
 
-            ### עדכון אוטומטי
-            לחץ **"עדכן מערכת"** מתפריט התחל — המערכת תגבה, תוריד ותפעיל את הגרסה החדשה אוטומטית.
+            ### התקנה ראשונה
+            הורד והרץ את **`LawFirmSystem-Setup-v${{ steps.version.outputs.VERSION }}.exe`**
 
-            ### עדכון ידני
-            ```
-            cd C:\LawFirmSystem
-            scripts\update-app.bat
-            ```
+            לא נדרש Docker, לא נדרשת הפעלה מחדש — מתקין בלחיצה אחת.
+
+            ### עדכון אוטומטי (למי שכבר מותקן)
+            לחץ **"עדכן מערכת"** מתפריט התחל.
 
             > הנתונים שלך נשמרים בכל עדכון.
-          files: lawfirm-system.tar.gz
+          files: |
+            installer/output/LawFirmSystem-Setup-v${{ steps.version.outputs.VERSION }}.exe
+            lawfirm-bundle.zip
           draft: false
           prerelease: false
