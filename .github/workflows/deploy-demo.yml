@@ -27,6 +27,13 @@ jobs:
           VITE_DEMO_MODE: true
         run: npm run build
 
+      - name: Download latest installer into site
+        run: |
+          curl -L \
+            "https://github.com/pokerwarden/erez-management/releases/latest/download/LawFirmSystem-Setup.exe" \
+            -o client/dist/LawFirmSystem-Setup.exe \
+            --fail --silent || echo "Installer not yet available, skipping"
+
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
         with:
