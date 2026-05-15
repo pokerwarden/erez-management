@@ -5,11 +5,12 @@ import https from 'https'
 
 const router = Router()
 
-const GITHUB_REPO = 'pokerwarden/erez-management'
+// Same GitHub repo that hosts version.json (like GTO's update.json)
+const VERSION_JSON_URL = process.env.VERSION_JSON_URL ||
+  'https://raw.githubusercontent.com/pokerwarden/erez-management/main/version.json'
 
 function getCurrentVersion(): string {
   try {
-    // In Docker, version.txt is copied to /app/version.txt
     const versionPath = path.join(process.cwd(), 'version.txt')
     return fs.readFileSync(versionPath, 'utf-8').trim()
   } catch {
@@ -17,11 +18,19 @@ function getCurrentVersion(): string {
   }
 }
 
-function fetchLatestRelease(): Promise<{ version: string; url: string } | null> {
+interface VersionJson {
+  version: string
+  releaseDate: string
+  downloadUrl: string
+  changelog: string
+}
+
+function fetchVersionJson(): Promise<VersionJson | null> {
   return new Promise((resolve) => {
+    const url = new URL(VERSION_JSON_URL)
     const options = {
-      hostname: 'api.github.com',
-      path: `/repos/${GITHUB_REPO}/releases/latest`,
+      hostname: url.hostname,
+      path: url.pathname,
       headers: { 'User-Agent': 'lawfirm-system' },
     }
     const req = https.get(options, (res) => {
@@ -29,15 +38,7 @@ function fetchLatestRelease(): Promise<{ version: string; url: string } | null> 
       res.on('data', (chunk) => (data += chunk))
       res.on('end', () => {
         try {
-          const json = JSON.parse(data)
-          if (json.tag_name) {
-            resolve({
-              version: json.tag_name.replace(/^v/, ''),
-              url: json.html_url,
-            })
-          } else {
-            resolve(null)
-          }
+          resolve(JSON.parse(data) as VersionJson)
         } catch {
           resolve(null)
         }
@@ -48,7 +49,7 @@ function fetchLatestRelease(): Promise<{ version: string; url: string } | null> 
   })
 }
 
-function compareVersions(current: string, latest: string): boolean {
+function isNewer(current: string, latest: string): boolean {
   const parse = (v: string) => v.split('.').map(Number)
   const [cMaj, cMin, cPatch] = parse(current)
   const [lMaj, lMin, lPatch] = parse(latest)
@@ -57,26 +58,28 @@ function compareVersions(current: string, latest: string): boolean {
   return lPatch > cPatch
 }
 
-// GET /api/version — current version
+// GET /api/version
 router.get('/', (_req, res) => {
   res.json({ version: getCurrentVersion() })
 })
 
-// GET /api/version/check — check if update available
+// GET /api/version/check
 router.get('/check', async (_req, res) => {
   const current = getCurrentVersion()
-  const latest = await fetchLatestRelease()
+  const remote = await fetchVersionJson()
 
-  if (!latest) {
+  if (!remote) {
     return res.json({ current, updateAvailable: false, error: 'לא ניתן לבדוק עדכונים כרגע' })
   }
 
-  const updateAvailable = compareVersions(current, latest.version)
+  const updateAvailable = isNewer(current, remote.version)
   res.json({
     current,
-    latest: latest.version,
+    latest: remote.version,
     updateAvailable,
-    releaseUrl: latest.url,
+    downloadUrl: remote.downloadUrl,
+    changelog: remote.changelog,
+    releaseDate: remote.releaseDate,
   })
 })
 

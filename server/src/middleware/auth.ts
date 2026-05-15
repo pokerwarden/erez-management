@@ -16,19 +16,25 @@ declare global {
   }
 }
 
-const DEMO_USER: AuthUser = {
-  id: 'demo-admin',
-  email: 'admin@lawfirm.co.il',
-  role: 'ADMIN',
-  name: 'מנהל מערכת',
+export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '')
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as AuthUser
+    req.user = decoded
+    next()
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' })
+  }
 }
 
-export function requireAuth(req: Request, _res: Response, next: NextFunction) {
-  req.user = DEMO_USER
-  next()
-}
-
-export function requireAdmin(req: Request, _res: Response, next: NextFunction) {
-  req.user = DEMO_USER
-  next()
+export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  requireAuth(req, res, () => {
+    if (req.user?.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Admin access required' })
+    }
+    next()
+  })
 }

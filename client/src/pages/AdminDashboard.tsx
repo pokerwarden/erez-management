@@ -12,7 +12,9 @@ interface VersionInfo {
   current: string
   latest?: string
   updateAvailable: boolean
-  releaseUrl?: string
+  downloadUrl?: string
+  changelog?: string
+  releaseDate?: string
   error?: string
   checking: boolean
 }
@@ -145,20 +147,21 @@ export default function AdminDashboard() {
 
       {/* Update banner */}
       {version.updateAvailable && version.latest ? (
-        <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-800">
-          <Download className="h-4 w-4 shrink-0" />
-          <span className="flex-1">
-            גרסה חדשה זמינה: <strong>v{version.latest}</strong> (נוכחית: v{version.current})
-          </span>
-          <a
-            href={version.releaseUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="font-medium underline hover:no-underline"
-          >
-            פרטי גרסה
-          </a>
-          <span className="text-blue-600 text-xs">פתח "עדכן מערכת" מתפריט התחל</span>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-800 space-y-1">
+          <div className="flex items-center gap-3">
+            <Download className="h-4 w-4 shrink-0" />
+            <span className="flex-1 font-medium">
+              גרסה חדשה זמינה: <strong>v{version.latest}</strong>
+              {version.releaseDate ? ` (${version.releaseDate})` : ''}
+              {' '}— נוכחית: v{version.current}
+            </span>
+          </div>
+          {version.changelog ? (
+            <div className="pr-7 text-blue-700 text-xs">{version.changelog}</div>
+          ) : null}
+          <div className="pr-7 text-blue-600 text-xs">
+            להתקנה: היכנס לשרת והרץ <code className="bg-blue-100 rounded px-1">./update.sh</code>
+          </div>
         </div>
       ) : null}
 
