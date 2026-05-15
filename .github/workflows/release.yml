@@ -54,7 +54,7 @@ jobs:
           Write-Host "Downloading Node.js $ver..."
           Invoke-WebRequest $url -OutFile node-win.zip -UseBasicParsing
           Expand-Archive node-win.zip -DestinationPath node-tmp -Force
-          Rename-Item "node-tmp\node-$ver-win-x64" "node-tmp\node"
+          Rename-Item "node-tmp\node-$ver-win-x64" "node"
           Write-Host "Node.js ready."
 
       # ── Download NSSM ───────────────────────────────────────────────────────
