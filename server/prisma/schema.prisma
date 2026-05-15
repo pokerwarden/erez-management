@@ -8,40 +8,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMIN
-  EMPLOYEE
-}
-
-enum CaseStatus {
-  OPEN
-  IN_PROGRESS
-  PENDING_CLIENT
-  PENDING_COURT
-  PENDING_RESPONSE
-  CLOSED
-  ARCHIVED
-}
-
-enum TaskStatus {
-  TODO
-  IN_PROGRESS
-  DONE
-}
-
-enum TaskPriority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
-
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
   passwordHash  String
   name          String
-  role          Role      @default(EMPLOYEE)
+  role          String    @default("EMPLOYEE")
   avatarUrl     String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -64,7 +36,7 @@ model Case {
   clientEmail       String?
   clientPhone       String?
   description       String?
-  status            CaseStatus @default(OPEN)
+  status            String     @default("OPEN")
   courtDate         DateTime?
   courtName         String?
   caseType          String?
@@ -99,8 +71,8 @@ model Task {
   id          String       @id @default(uuid())
   title       String
   description String?
-  status      TaskStatus   @default(TODO)
-  priority    TaskPriority @default(MEDIUM)
+  status      String       @default("TODO")
+  priority    String       @default("MEDIUM")
   dueDate     DateTime?
   billing     Float?
   caseId      String?

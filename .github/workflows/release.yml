@@ -57,12 +57,9 @@ jobs:
           Rename-Item "node-tmp\node-$ver-win-x64" "node"
           Write-Host "Node.js ready."
 
-      # ── Download NSSM ───────────────────────────────────────────────────────
-      - name: Download NSSM (service manager)
-        shell: powershell
-        run: |
-          Invoke-WebRequest "https://nssm.cc/release/nssm-2.24.zip" -OutFile nssm.zip -UseBasicParsing
-          Expand-Archive nssm.zip -DestinationPath nssm-tmp -Force
+      # ── Get NSSM via Chocolatey ─────────────────────────────────────────────
+      - name: Install NSSM via Chocolatey
+        run: choco install nssm --no-progress -y
 
       # ── Assemble bundle ─────────────────────────────────────────────────────
       - name: Create lawfirm-bundle.zip
@@ -74,8 +71,10 @@ jobs:
           # Portable Node.js runtime
           Copy-Item "node-tmp\node" "$b\node" -Recurse -Force
 
-          # NSSM service manager
-          Copy-Item "nssm-tmp\nssm-2.24\win64\nssm.exe" "$b\nssm.exe" -Force
+          # NSSM service manager (installed via chocolatey)
+          $nssmExe = (Get-Command nssm -ErrorAction SilentlyContinue).Source
+          if (-not $nssmExe) { $nssmExe = "C:\ProgramData\chocolatey\bin\nssm.exe" }
+          Copy-Item $nssmExe "$b\nssm.exe" -Force
 
           # Server: compiled dist + production node_modules + prisma
           $app = "$b\app"
