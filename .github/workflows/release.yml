@@ -142,7 +142,7 @@ jobs:
             ## מה חדש בגרסה ${{ github.ref_name }}
 
             ### התקנה ראשונה
-            הורד והרץ את **`LawFirmSystem-Setup-v${{ steps.version.outputs.VERSION }}.exe`**
+            הורד והרץ את **`LawFirmSystem-Setup.exe`**
 
             לא נדרש Docker, לא נדרשת הפעלה מחדש — מתקין בלחיצה אחת.
 
@@ -151,7 +151,7 @@ jobs:
 
             > הנתונים שלך נשמרים בכל עדכון.
           files: |
-            installer/output/LawFirmSystem-Setup-v${{ steps.version.outputs.VERSION }}.exe
+            installer/output/LawFirmSystem-Setup.exe
             lawfirm-bundle.zip
           draft: false
           prerelease: false

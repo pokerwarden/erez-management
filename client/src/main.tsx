@@ -35,7 +35,7 @@ function DownloadBanner() {
   if (import.meta.env.VITE_DEMO_MODE !== 'true') return null
   return (
     <a
-      href="https://github.com/pokerwarden/erez-management/releases/latest/download/LawFirmSystem-Setup-v1.0.0.exe"
+      href="https://github.com/pokerwarden/erez-management/releases/latest/download/LawFirmSystem-Setup.exe"
       style={{
         position: 'fixed',
         bottom: '24px',
