@@ -1,5 +1,5 @@
 @echo off
-title Remote Access URL
+title כתובת גישה מרחוק
 set URLFILE=C:\LawFirmSystem\cloudflare-url.txt
 
 if not exist "%URLFILE%" (
@@ -8,19 +8,22 @@ if not exist "%URLFILE%" (
     exit /b 1
 )
 
-set /p URL=<"%URLFILE%"
+:: Read URL via PowerShell to avoid BOM/RTL issues
+for /f "usebackq delims=" %%U in (`powershell -Command "[System.IO.File]::ReadAllText('%URLFILE%').Trim()"`) do set URL=%%U
 
 echo.
 echo ================================================
-echo   Employee Remote Access URL:
+echo   כתובת גישה לעובדים מרחוק:
 echo.
 echo   %URL%
 echo.
 echo ================================================
 echo.
-echo Share this URL with your employees.
-echo They can connect from any computer on any network.
+echo שתף קישור זה עם העובדים שלך.
+echo הם יוכלו להתחבר מכל מחשב, מכל רשת.
 echo.
-echo Press any key to open URL in browser...
+echo לחץ על מקש כלשהו לפתיחה בדפדפן...
 pause >nul
-start "" "%URL%"
+
+:: Open URL via PowerShell to avoid Windows RTL parsing issues
+powershell -Command "Start-Process '%URL%'"
